@@ -1,5 +1,4 @@
 flask
-stanza
 tqdm
 pandas
 gunicorn
