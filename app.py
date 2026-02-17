@@ -7,16 +7,16 @@ import requests
 app = Flask(__name__)
 
 # =============================================
-# Скачивание вертикального файла из Google Drive
+# Скачивание корпуса из Google Drive
 # =============================================
 documents = []
 current_doc = None
 current_sent = None
 
-url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"  # твоя ссылка
+url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
 
 try:
-    response = requests.get(url, timeout=60)  # 60 секунд на скачивание
+    response = requests.get(url, timeout=60)
     response.raise_for_status()
     text = response.text
     lines = text.splitlines()
@@ -55,6 +55,8 @@ for line in lines:
 
 if current_doc:
     documents.append(current_doc)
+
+print(f"Загружено документов: {len(documents)}")  # для отладки в логах Render
 
 # =============================================
 # Метаданные из CSV
