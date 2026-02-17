@@ -2,14 +2,59 @@ from flask import Flask, render_template_string, request, abort
 import os
 import re
 import csv
+import requests
 
 app = Flask(__name__)
 
 # =============================================
-# ВРЕМЕННО ОТКЛЮЧИЛИ БОЛЬШОЙ ФАЙЛ ДЛЯ ДЕПЛОЯ
+# Скачивание вертикального файла из Google Drive
 # =============================================
-VERTICAL_FILE = 'full_vertical_max.txt'  # файл не загружен на GitHub
-documents = []  # ← пустой корпус, чтобы не падало
+documents = []
+current_doc = None
+current_sent = None
+
+url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"  # твоя ссылка
+
+try:
+    response = requests.get(url, timeout=60)  # 60 секунд на скачивание
+    response.raise_for_status()
+    text = response.text
+    lines = text.splitlines()
+except Exception as e:
+    print(f"Ошибка скачивания корпуса: {e}")
+    lines = []
+
+# Парсинг из lines (твой оригинальный код)
+for line in lines:
+    line = line.strip()
+    if line.startswith('<doc '):
+        if current_doc:
+            documents.append(current_doc)
+        attrs = dict(re.findall(r'(\w+)="([^"]*)"', line))
+        current_doc = {'attrs': attrs, 'sentences': []}
+    elif line.startswith('<s>'):
+        current_sent = []
+    elif line == '</s>':
+        if current_doc and current_sent is not None:
+            current_doc['sentences'].append(current_sent)
+            current_sent = None
+    elif line == '</doc>':
+        if current_doc:
+            documents.append(current_doc)
+            current_doc = None
+    elif '\t' in line and current_sent is not None:
+        parts = line.split('\t')
+        if len(parts) >= 6:
+            word = parts[0]
+            lemma = parts[1] if len(parts) > 1 else '—'
+            pos = parts[2] if len(parts) > 2 else '—'
+            feats = parts[3] if len(parts) > 3 and parts[3] != '—' else '—'
+            head = parts[4] if len(parts) > 4 and parts[4] != '—' else '—'
+            deprel = parts[5] if len(parts) > 5 and parts[5] != '—' else '—'
+            current_sent.append({'word': word, 'lemma': lemma, 'pos': pos, 'feats': feats, 'head': head, 'deprel': deprel})
+
+if current_doc:
+    documents.append(current_doc)
 
 # =============================================
 # Метаданные из CSV
@@ -292,4 +337,4 @@ def show_doc(filename):
     abort(404, f"Документ '{filename}' табылмады.")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9000, debug=True)  # порт 9000
+    app.run(host='0.0.0.0', port=9000, debug=True)
