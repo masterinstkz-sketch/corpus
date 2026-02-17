@@ -56,7 +56,7 @@ for line in lines:
 if current_doc:
     documents.append(current_doc)
 
-print(f"Загружено документов: {len(documents)}")  # для отладки в логах Render
+print(f"Загружено документов: {len(documents)}")  # для логов Render
 
 # =============================================
 # Метаданные из CSV
