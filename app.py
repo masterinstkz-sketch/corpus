@@ -30,7 +30,7 @@ documents = []
 current_doc = None
 current_sent = None
 
-with open(VERTICAL_FILE, 'r', encoding='utf-8') as f:
+documents = []  # пустой корпус
     for line in f:
         line = line.strip()
         if line.startswith('<doc '):
