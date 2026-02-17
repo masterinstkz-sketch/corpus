@@ -8,8 +8,8 @@ app = Flask(__name__)
 # =============================================
 # ВРЕМЕННО ОТКЛЮЧИЛИ БОЛЬШОЙ ФАЙЛ ДЛЯ ДЕПЛОЯ
 # =============================================
-VERTICAL_FILE = 'full_vertical_max.txt'   # файл не загружен на GitHub
-documents = []                            # ← пустой корпус, чтобы не падало
+VERTICAL_FILE = 'full_vertical_max.txt'  # файл не загружен на GitHub
+documents = []  # ← пустой корпус, чтобы не падало
 
 # =============================================
 # Метаданные из CSV
@@ -39,7 +39,7 @@ POS_KAZ = {
     'X': 'Басқа', '?': 'Белгісіз'
 }
 
-HTML_INDEX = """ 
+HTML_INDEX = """
 <!doctype html>
 <html lang="kk">
 <head>
@@ -142,30 +142,154 @@ def index():
     if query:
         query_words = [w.strip().lower() for w in re.split(r'\s+', query) if w.strip()]
 
-        for doc in documents:   # пока documents пустой — результатов не будет
+        if not query_words:
+            return render_template_string(HTML_INDEX, results=[], request=request, POS_KAZ=POS_KAZ)
+
+        for doc in documents:
             filename = doc['attrs'].get('filename', '—')
             meta = metadata_dict.get(filename, {})
 
             for sent in doc['sentences']:
-                # ... (пока пусто)
+                sentence_words = [w['word'] for w in sent]
+                sentence_text = ' '.join(sentence_words)
+                sentence_lemmas_lower = [w['lemma'].lower() for w in sent]
+
+                # Проверяем наличие всех слов из запроса
+                all_present = True
+                for qw in query_words:
+                    found = False
+                    for lemma in sentence_lemmas_lower:
+                        if qw == lemma:
+                            found = True
+                            break
+                    if not found:
+                        all_present = False
+                        break
+
+                if all_present:
+                    # Подсветка
+                    highlighted_sent = sentence_text
+                    for ww in sent:
+                        if ww['lemma'].lower() in query_words:
+                            highlighted_sent = re.sub(
+                                r'\b' + re.escape(ww['word']) + r'\b',
+                                f'<mark>{ww['word']}</mark>',
+                                highlighted_sent,
+                                flags=re.IGNORECASE
+                            )
+
+                    # Таблица только для найденных слов
+                    table_rows = []
+                    for token_idx, ww in enumerate(sent, 1):
+                        if ww['lemma'].lower() in query_words:
+                            feats_kaz = translate_feats(ww['feats'], ww['lemma'])
+                            deprel_kaz = translate_deprel(ww['deprel'])
+
+                            table_rows.append({
+                                'id': token_idx,
+                                'word': ww['word'],
+                                'lemma': ww['lemma'],
+                                'upos': ww['pos'],
+                                'feats_kaz': feats_kaz,
+                                'deprel_kaz': deprel_kaz
+                            })
+
+                    if table_rows:
+                        results.append({
+                            'filename': filename,
+                            'text_type': meta.get('text_type', 'Не указано'),
+                            'level': meta.get('level', 'Не указано'),
+                            'gender': meta.get('gender', 'Не указано'),
+                            'publish_period': meta.get('publish_period', 'Не указано'),
+                            'collect_date': meta.get('collect_date', 'Не указано'),
+                            'word_count': meta.get('word_count', 'Не указано'),
+                            'sentence': highlighted_sent,
+                            'table_rows': table_rows
+                        })
 
     return render_template_string(HTML_INDEX, results=results, request=request, POS_KAZ=POS_KAZ)
 
-# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 def translate_feats(feats, lemma=''):
     if feats == '—':
         return '— (қосымша белгілер көрсетілмеген)'
-    # ... (твоя функция без изменений)
+    
+    kaz = []
+    for p in feats.split('|'):
+        if '=' not in p:
+            kaz.append(p)
+            continue
+        key, val = p.split('=', 1)
+        if key == 'Case':
+            if val == 'Nom': kaz.append('Атау септік')
+            elif val == 'Acc': kaz.append('Ілік септік')
+            elif val == 'Dat': kaz.append('Барыс септік')
+            elif val == 'Gen': kaz.append('Ілік септік')
+            elif val == 'Loc': kaz.append('Жатыс септік')
+            elif val == 'Abl': kaz.append('Шығыс септік')
+            elif val == 'Ins': kaz.append('Құралдық септік')
+        elif key == 'Number':
+            if val == 'Plur': kaz.append('Көпше')
+            elif val == 'Sing': kaz.append('Жекеше')
+        elif key == 'Person':
+            if val == '1': kaz.append('1-жақ')
+            elif val == '2': kaz.append('2-жақ')
+            elif val == '3': kaz.append('3-жақ')
+        elif key == 'Person[psor]':
+            if val == '1': kaz.append('1-жақ иесі')
+            elif val == '2': kaz.append('2-жақ иесі')
+            elif val == '3': kaz.append('3-жақ иесі')
+        elif key == 'Number[psor]':
+            if val == 'Plur,Sing': kaz.append('Иесінің саны: жекеше немесе көпше')
+            elif val == 'Sing': kaz.append('Иесінің саны: жекеше')
+            elif val == 'Plur': kaz.append('Иесінің саны: көпше')
+        elif key == 'Mood':
+            if val == 'Ind': kaz.append('Хабарлы рай')
+            elif val == 'Imp': kaz.append('Бұйрық рай')
+            elif val == 'Opt': kaz.append('Қалау рай')
+        elif key == 'Tense':
+            if val == 'Past': kaz.append('Өткен шақ')
+            elif val == 'Pres': kaz.append('Осы шақ')
+            elif val == 'Fut': kaz.append('Келер шақ')
+        elif key == 'Aspect':
+            if val == 'Hab': kaz.append('Әдеттегі іс-әрекет (habitual)')
+        elif key == 'VerbForm':
+            if val == 'Part': kaz.append('Есімше')
+            elif val == 'Ger': kaz.append('Көсемше')
+            elif val == 'Fin': kaz.append('Жіктік форма')
+            elif val == 'Inf': kaz.append('Тұйық етістік')
+        elif key == 'Voice':
+            if val == 'Caus': kaz.append('Мәжбүр етіс')
+            elif val == 'Pass': kaz.append('Ырықсыз етіс')
+        elif key == 'vbType':
+            if val == 'Adj': kaz.append('Есімше/Деепричастие')
+        else:
+            kaz.append(f"{key} = {val}")
+    
     return '<br>• ' + '<br>• '.join(kaz) if kaz else feats
 
 def translate_deprel(deprel):
-    mapping = { ... }  # твоя функция без изменений
+    mapping = {
+        'obj': 'Тікелей толықтауыш',
+        'nsubj': 'Бастауыш',
+        'advmod': 'Үстеулік толықтауыш',
+        'nmod:poss': 'Иелік септіктегі толықтауыш',
+        'root': 'Басты мүше',
+        'acl': 'Анықтауыштық бағыныңқы',
+        'acl:relcl': 'Қатыстық бағыныңқы сөйлем',
+        'case': 'Септік жалғауы',
+        'advcl': 'Үстеулік бағыныңқы сөйлем',
+        'parataxis': 'Қатарлас сөйлем',
+        'ccomp': 'Бағыныңқы сөйлем',
+        'det': 'Анықтауыш',
+        'amod': 'Сындық анықтауыш',
+        'conj': 'Жалғаулық байланыс',
+        'cc': 'Жалғаулық'
+    }
     return mapping.get(deprel, deprel or '—')
 
 @app.route('/doc/<filename>')
 def show_doc(filename):
-    # Пока документов нет — просто 404
     abort(404, f"Документ '{filename}' табылмады.")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9000, debug=True)   # порт 9000, как ты уже менял
+    app.run(host='0.0.0.0', port=9000, debug=True)  # порт 9000
