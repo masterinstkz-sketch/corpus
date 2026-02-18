@@ -6,9 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-# =============================================
 # Скачивание корпуса из Google Drive
-# =============================================
 documents = []
 current_doc = None
 current_sent = None
@@ -16,7 +14,7 @@ current_sent = None
 url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
 
 try:
-    response = requests.get(url, timeout=300)  # 5 минут таймаут
+    response = requests.get(url, timeout=300)
     response.raise_for_status()
     text = response.text
     lines = text.splitlines()
@@ -24,7 +22,7 @@ except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
     lines = []
 
-# Парсинг из lines (твой оригинальный код)
+# Парсинг из lines
 for line in lines:
     line = line.strip()
     if line.startswith('<doc '):
@@ -56,11 +54,9 @@ for line in lines:
 if current_doc:
     documents.append(current_doc)
 
-print(f"Загружено документов: {len(documents)}")  # для логов Render
+print(f"Загружено документов: {len(documents)}")  # отладка в логах Render
 
-# =============================================
 # Метаданные из CSV
-# =============================================
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
@@ -201,7 +197,6 @@ def index():
                 sentence_text = ' '.join(sentence_words)
                 sentence_lemmas_lower = [w['lemma'].lower() for w in sent]
 
-                # Проверяем наличие всех слов из запроса
                 all_present = True
                 for qw in query_words:
                     found = False
@@ -214,7 +209,6 @@ def index():
                         break
 
                 if all_present:
-                    # Подсветка
                     highlighted_sent = sentence_text
                     for ww in sent:
                         if ww['lemma'].lower() in query_words:
@@ -225,7 +219,6 @@ def index():
                                 flags=re.IGNORECASE
                             )
 
-                    # Таблица только для найденных слов
                     table_rows = []
                     for token_idx, ww in enumerate(sent, 1):
                         if ww['lemma'].lower() in query_words:
