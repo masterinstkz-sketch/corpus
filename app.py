@@ -6,7 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-# Скачивание корпуса из Google Drive
+# Скачивание корпуса из Google Drive (потоково, без ошибок bytes/str)
 documents = []
 current_doc = None
 current_sent = None
@@ -17,9 +17,10 @@ try:
     response = requests.get(url, timeout=300, stream=True)
     response.raise_for_status()
     lines = []
-    for chunk in response.iter_lines(decode_unicode=True):
+    for chunk in response.iter_lines():
         if chunk:
-            lines.append(chunk)
+            line = chunk.decode('utf-8', errors='ignore')
+            lines.append(line)
     print(f"Скачано строк: {len(lines)}")
 except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
@@ -59,7 +60,7 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")
 
-# Метаданные
+# Метаданные из CSV
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
@@ -173,7 +174,7 @@ HTML_INDEX = """
         </div>
       {% endfor %}
     {% else %}
-      <p class="no-results">Нәтиже жоқ. Басқа сөз енгізіп көріңіз.</p>
+      <p class="no-results">Нәтиже жоқ. Басқа слово енгізіп көріңіз.</p>
     {% endif %}
   </div>
 </body>
