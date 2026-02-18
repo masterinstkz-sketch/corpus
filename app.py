@@ -6,9 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-# =============================================
 # Скачивание корпуса из Google Drive
-# =============================================
 documents = []
 current_doc = None
 current_sent = None
@@ -16,7 +14,7 @@ current_sent = None
 url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
 
 try:
-    response = requests.get(url, timeout=60)
+    response = requests.get(url, timeout=300)  # 5 минут таймаут
     response.raise_for_status()
     text = response.text
     lines = text.splitlines()
@@ -24,7 +22,7 @@ except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
     lines = []
 
-# Парсинг из lines (твой оригинальный код)
+# Парсинг из lines
 for line in lines:
     line = line.strip()
     if line.startswith('<doc '):
@@ -58,9 +56,7 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")  # для логов Render
 
-# =============================================
 # Метаданные из CSV
-# =============================================
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
