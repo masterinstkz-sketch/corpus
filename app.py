@@ -334,7 +334,7 @@ def translate_deprel(deprel):
     }
     return mapping.get(deprel, deprel or '—')
 
-@app.route('/doc/<filename>')
+@app.route('/test_files/<filename>')
 def show_doc(filename):
     abort(404, f"Документ '{filename}' табылмады.")
 
