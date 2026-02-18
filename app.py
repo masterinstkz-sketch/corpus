@@ -6,9 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-# =============================================
 # Скачивание корпуса из Google Drive
-# =============================================
 documents = []
 current_doc = None
 current_sent = None
@@ -27,7 +25,7 @@ except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
     lines = []
 
-# Парсинг вертикального файла
+# Парсинг
 for line in lines:
     line = line.strip()
     if line.startswith('<doc '):
@@ -61,7 +59,7 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")
 
-# Метаданные из CSV
+# Метаданные
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
@@ -262,7 +260,6 @@ def index():
 def translate_feats(feats, lemma=''):
     if feats == '—':
         return '— (қосымша белгілер көрсетілмеген)'
-    
     kaz = []
     for p in feats.split('|'):
         if '=' not in p:
@@ -314,7 +311,6 @@ def translate_feats(feats, lemma=''):
             if val == 'Adj': kaz.append('Есімше/Деепричастие')
         else:
             kaz.append(f"{key} = {val}")
-    
     return '<br>• ' + '<br>• '.join(kaz) if kaz else feats
 
 def translate_deprel(deprel):
