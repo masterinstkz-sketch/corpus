@@ -7,7 +7,7 @@ import requests
 app = Flask(__name__)
 
 # =============================================
-# Скачивание корпуса из Google Drive (потоково, экономит память)
+# Скачивание корпуса из Google Drive (потоково)
 # =============================================
 documents = []
 current_doc = None
@@ -61,7 +61,7 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")
 
-# Метаданные из CSV
+# Метаданные
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
@@ -145,7 +145,7 @@ HTML_INDEX = """
             {{ result.sentence | safe }}
           </div>
           
-          <h6 class="mb-2">Талдау (табылған сөз(дер) үшін):</h6>
+          <h6 class="mb-2">Талдау:</h6>
           <div class="table-responsive">
             <table class="table table-bordered table-sm mini-table">
               <thead class="table-light">
@@ -154,7 +154,7 @@ HTML_INDEX = """
                   <th>Сөз</th>
                   <th>Түбірі</th>
                   <th>UPOS</th>
-                  <th>Толық морфология</th>
+                  <th>Морфология</th>
                   <th>Рөлі</th>
                 </tr>
               </thead>
@@ -175,7 +175,7 @@ HTML_INDEX = """
         </div>
       {% endfor %}
     {% else %}
-      <p class="no-results">Нәтиже жоқ. Басқа слово енгізіп көріңіз.</p>
+      <p class="no-results">Нәтиже жоқ. Басқа сөз енгізіп көріңіз.</p>
     {% endif %}
   </div>
 </body>
@@ -203,7 +203,6 @@ def index():
                 sentence_lemmas_lower = [w['lemma'].lower() for w in sent]
                 sentence_words_lower = [w['word'].lower() for w in sent]
 
-                # Поиск по лемме ИЛИ по словоформе
                 all_present = True
                 for qw in query_words:
                     found = False
@@ -216,7 +215,6 @@ def index():
                         break
 
                 if all_present:
-                    # Подсветка
                     highlighted_sent = sentence_text
                     for ww in sent:
                         word_lower = ww['word'].lower()
@@ -229,7 +227,6 @@ def index():
                                 flags=re.IGNORECASE
                             )
 
-                    # Таблица
                     table_rows = []
                     for token_idx, ww in enumerate(sent, 1):
                         word_lower = ww['word'].lower()
@@ -265,7 +262,6 @@ def index():
 def translate_feats(feats, lemma=''):
     if feats == '—':
         return '— (қосымша белгілер көрсетілмеген)'
-    
     kaz = []
     for p in feats.split('|'):
         if '=' not in p:
@@ -304,7 +300,7 @@ def translate_feats(feats, lemma=''):
             elif val == 'Pres': kaz.append('Осы шақ')
             elif val == 'Fut': kaz.append('Келер шақ')
         elif key == 'Aspect':
-            if val == 'Hab': kaz.append('Әдеттегі іс-әрекет (habitual)')
+            if val == 'Hab': kaz.append('Әдеттегі іс-әрекет')
         elif key == 'VerbForm':
             if val == 'Part': kaz.append('Есімше')
             elif val == 'Ger': kaz.append('Көсемше')
@@ -313,11 +309,8 @@ def translate_feats(feats, lemma=''):
         elif key == 'Voice':
             if val == 'Caus': kaz.append('Мәжбүр етіс')
             elif val == 'Pass': kaz.append('Ырықсыз етіс')
-        elif key == 'vbType':
-            if val == 'Adj': kaz.append('Есімше/Деепричастие')
         else:
             kaz.append(f"{key} = {val}")
-    
     return '<br>• ' + '<br>• '.join(kaz) if kaz else feats
 
 def translate_deprel(deprel):
