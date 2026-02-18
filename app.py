@@ -2,28 +2,22 @@ from flask import Flask, render_template_string, request, abort
 import os
 import re
 import csv
-import requests
 
 app = Flask(__name__)
 
-# Скачивание корпуса из Google Drive
+# =============================================
+# Чтение корпуса из диска
+# =============================================
 documents = []
 current_doc = None
 current_sent = None
 
-url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
+VERTICAL_FILE = '/data/full_vertical_max.txt'  # путь на Persistent Disk
 
-try:
-    response = requests.get(url, timeout=300, stream=True)
-    response.raise_for_status()
-    lines = []
-    for chunk in response.iter_lines(decode_unicode=True):
-        if chunk:
-            lines.append(chunk)
-    print(f"Скачано строк: {len(lines)}")
-except Exception as e:
-    print(f"Ошибка скачивания корпуса: {e}")
-    lines = []
+lines = []
+with open(VERTICAL_FILE, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+print(f"Строк в файле: {len(lines)}")
 
 # Парсинг
 for line in lines:
