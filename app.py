@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, abort
+from flask import Flask, render_template_string, request, send_from_directory, abort
 import os
 import re
 import csv
@@ -336,7 +336,18 @@ def translate_deprel(deprel):
 
 @app.route('/test_files/<filename>')
 def show_doc(filename):
-    abort(404, f"Документ '{filename}' табылмады.")
+    # Защита от path traversal
+    if '..' in filename or '/' in filename or '\\' in filename:
+        abort(404)
+
+    directory = 'test_files'
+    filepath = os.path.join(directory, filename)
+
+    if not os.path.exists(filepath):
+        abort(404, f"Документ '{filename}' табылмады.")
+
+    # Отдаём файл как текст (откроется в браузере красиво)
+    return send_from_directory(directory, filename, mimetype='text/plain; charset=utf-8')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9000, debug=True)
