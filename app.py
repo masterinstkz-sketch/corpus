@@ -6,7 +6,9 @@ import requests
 
 app = Flask(__name__)
 
+# =============================================
 # Скачивание корпуса из Google Drive
+# =============================================
 documents = []
 current_doc = None
 current_sent = None
@@ -22,7 +24,7 @@ except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
     lines = []
 
-# Парсинг из lines
+# Парсинг из lines (твой оригинальный код)
 for line in lines:
     line = line.strip()
     if line.startswith('<doc '):
@@ -56,7 +58,9 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")  # для логов Render
 
+# =============================================
 # Метаданные из CSV
+# =============================================
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
