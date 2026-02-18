@@ -6,7 +6,9 @@ import requests
 
 app = Flask(__name__)
 
-# Скачивание корпуса из Google Drive
+# =============================================
+# Скачивание корпуса из Google Drive (потоково, экономит память)
+# =============================================
 documents = []
 current_doc = None
 current_sent = None
@@ -14,15 +16,18 @@ current_sent = None
 url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
 
 try:
-    response = requests.get(url, timeout=300)
+    response = requests.get(url, timeout=300, stream=True)
     response.raise_for_status()
-    text = response.text
-    lines = text.splitlines()
+    lines = []
+    for chunk in response.iter_lines(decode_unicode=True):
+        if chunk:
+            lines.append(chunk)
+    print(f"Скачано строк: {len(lines)}")
 except Exception as e:
     print(f"Ошибка скачивания корпуса: {e}")
     lines = []
 
-# Парсинг
+# Парсинг вертикального файла
 for line in lines:
     line = line.strip()
     if line.startswith('<doc '):
@@ -56,7 +61,7 @@ if current_doc:
 
 print(f"Загружено документов: {len(documents)}")
 
-# Метаданные
+# Метаданные из CSV
 metadata_dict = {}
 if os.path.exists('metadata.csv'):
     with open('metadata.csv', 'r', encoding='utf-8-sig') as csvfile:
@@ -170,7 +175,7 @@ HTML_INDEX = """
         </div>
       {% endfor %}
     {% else %}
-      <p class="no-results">Нәтиже жоқ. Басқа сөздер енгізіп көріңіз.</p>
+      <p class="no-results">Нәтиже жоқ. Басқа слово енгізіп көріңіз.</p>
     {% endif %}
   </div>
 </body>
@@ -198,7 +203,7 @@ def index():
                 sentence_lemmas_lower = [w['lemma'].lower() for w in sent]
                 sentence_words_lower = [w['word'].lower() for w in sent]
 
-                # Проверяем наличие всех слов из запроса (лемма ИЛИ словоформа)
+                # Поиск по лемме ИЛИ по словоформе
                 all_present = True
                 for qw in query_words:
                     found = False
