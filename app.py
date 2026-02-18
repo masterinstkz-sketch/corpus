@@ -2,45 +2,62 @@ from flask import Flask, render_template_string, request, abort
 import os
 import re
 import csv
+import requests
 
 app = Flask(__name__)
 
-VERTICAL_FILE = 'full_vertical_max.txt'
+# Скачивание корпуса из Google Drive
 documents = []
 current_doc = None
 current_sent = None
 
-with open(VERTICAL_FILE, 'r', encoding='utf-8') as f:
-    for line in f:
-        line = line.strip()
-        if line.startswith('<doc '):
-            if current_doc:
-                documents.append(current_doc)
-            attrs = dict(re.findall(r'(\w+)="([^"]*)"', line))
-            current_doc = {'attrs': attrs, 'sentences': []}
-        elif line.startswith('<s>'):
-            current_sent = []
-        elif line == '</s>':
-            if current_doc and current_sent is not None:
-                current_doc['sentences'].append(current_sent)
-                current_sent = None
-        elif line == '</doc>':
-            if current_doc:
-                documents.append(current_doc)
-                current_doc = None
-        elif '\t' in line and current_sent is not None:
-            parts = line.split('\t')
-            if len(parts) >= 6:
-                word = parts[0]
-                lemma = parts[1] if len(parts) > 1 else '—'
-                pos = parts[2] if len(parts) > 2 else '—'
-                feats = parts[3] if len(parts) > 3 and parts[3] != '—' else '—'
-                head = parts[4] if len(parts) > 4 and parts[4] != '—' else '—'
-                deprel = parts[5] if len(parts) > 5 and parts[5] != '—' else '—'
-                current_sent.append({'word': word, 'lemma': lemma, 'pos': pos, 'feats': feats, 'head': head, 'deprel': deprel})
+url = "https://drive.google.com/uc?export=download&id=1balDNY-B63tlG5pN6L5y0TfgpNTR7BtX"
+
+try:
+    response = requests.get(url, timeout=300, stream=True)
+    response.raise_for_status()
+    lines = []
+    for chunk in response.iter_lines(decode_unicode=True):
+        if chunk:
+            lines.append(chunk)
+    print(f"Скачано строк: {len(lines)}")
+except Exception as e:
+    print(f"Ошибка скачивания корпуса: {e}")
+    lines = []
+
+# Парсинг
+for line in lines:
+    line = line.strip()
+    if line.startswith('<doc '):
+        if current_doc:
+            documents.append(current_doc)
+        attrs = dict(re.findall(r'(\w+)="([^"]*)"', line))
+        current_doc = {'attrs': attrs, 'sentences': []}
+    elif line.startswith('<s>'):
+        current_sent = []
+    elif line == '</s>':
+        if current_doc and current_sent is not None:
+            current_doc['sentences'].append(current_sent)
+            current_sent = None
+    elif line == '</doc>':
+        if current_doc:
+            documents.append(current_doc)
+            current_doc = None
+    elif '\t' in line and current_sent is not None:
+        parts = line.split('\t')
+        if len(parts) >= 6:
+            word = parts[0]
+            lemma = parts[1] if len(parts) > 1 else '—'
+            pos = parts[2] if len(parts) > 2 else '—'
+            feats = parts[3] if len(parts) > 3 and parts[3] != '—' else '—'
+            head = parts[4] if len(parts) > 4 and parts[4] != '—' else '—'
+            deprel = parts[5] if len(parts) > 5 and parts[5] != '—' else '—'
+            current_sent.append({'word': word, 'lemma': lemma, 'pos': pos, 'feats': feats, 'head': head, 'deprel': deprel})
 
 if current_doc:
     documents.append(current_doc)
+
+print(f"Загружено документов: {len(documents)}")
 
 # Метаданные из CSV
 metadata_dict = {}
@@ -61,22 +78,107 @@ if os.path.exists('metadata.csv'):
                 }
 
 POS_KAZ = {
-    'NOUN': 'Зат есім',
-    'VERB': 'Етістік',
-    'ADJ': 'Сын есім',
-    'ADV': 'Үстеу',
-    'PRON': 'Есімдік',
-    'PROPN': 'Атаулы зат есім',
-    'NUM': 'Сан есім',
-    'DET': 'Анықтауыш',
-    'ADP': 'Септік жалғауы',
-    'CONJ': 'Жалғаулық',
-    'PART': 'Шылау',
-    'INTJ': 'Одағай',
-    'PUNCT': 'Тыныс белгісі',
-    'X': 'Басқа',
-    '?': 'Белгісіз'
+    'NOUN': 'Зат есім', 'VERB': 'Етістік', 'ADJ': 'Сын есім', 'ADV': 'Үстеу',
+    'PRON': 'Есімдік', 'PROPN': 'Атаулы зат есім', 'NUM': 'Сан есім',
+    'DET': 'Анықтауыш', 'ADP': 'Септік жалғауы', 'CONJ': 'Жалғаулық',
+    'PART': 'Шылау', 'INTJ': 'Одағай', 'PUNCT': 'Тыныс белгісі',
+    'X': 'Басқа', '?': 'Белгісіз'
 }
+
+HTML_INDEX = """
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8">
+  <title>Қазақ корпусы</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body { background: #f8f9f9; }
+    .header { background: #2c3e50; color: white; padding: 40px 0; text-align: center; }
+    .header h1 { margin: 0; font-size: 36px; }
+    .search-bar { max-width: 800px; margin: 30px auto; }
+    .result-item { background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 30px; padding: 20px; }
+    .sentence { font-size: 18px; line-height: 1.8; margin-bottom: 15px; padding: 10px; background: #fff; border-radius: 6px; }
+    .sentence mark { background: #ffeb3b; padding: 2px 5px; border-radius: 3px; }
+    .meta { background: #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
+    .doc-link { font-weight: bold; color: #007bff; text-decoration: none; }
+    .doc-link:hover { text-decoration: underline; }
+    .no-results { text-align: center; color: #6c757d; font-size: 18px; margin: 50px 0; }
+    .mini-table { font-size: 14px; }
+    .mini-table th, .mini-table td { padding: 8px 10px; vertical-align: middle; }
+    .highlight-row { background-color: #fff3cd !important; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Қазақ корпусы</h1>
+  </div>
+
+  <div class="search-bar">
+    <form method="GET" class="d-flex">
+      <input type="text" name="query" class="form-control me-2" placeholder="Сөз немесе түбірлер (мыс: дегеннен арба)" value="{{ request.args.get('query', '') }}">
+      <button type="submit" class="btn btn-primary">Іздеу</button>
+    </form>
+  </div>
+
+  <div class="container">
+    <h2 class="my-4">Нәтижелер</h2>
+    {% if results %}
+      {% for result in results %}
+        <div class="result-item">
+          <div class="doc-name mb-2">
+            Мәтін: <a class="doc-link" href="/doc/{{ result.filename }}?query={{ request.args.get('query', '') }}">{{ result.filename }}</a>
+          </div>
+          <div class="meta">
+            <b>Түр:</b> {{ result.text_type }} | 
+            <b>Деңгей:</b> {{ result.level }} | 
+            <b>Жынысы:</b> {{ result.gender }} | 
+            <b>Кезең:</b> {{ result.publish_period }} | 
+            <b>Жинақ күні:</b> {{ result.collect_date }} | 
+            <b>Сөз саны:</b> {{ result.word_count }}
+          </div>
+          
+          <div class="sentence mb-3">
+            {{ result.sentence | safe }}
+          </div>
+          
+          <h6 class="mb-2">Талдау:</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm mini-table">
+              <thead class="table-light">
+                <tr>
+                  <th>№</th>
+                  <th>Сөз</th>
+                  <th>Түбірі</th>
+                  <th>UPOS</th>
+                  <th>Морфология</th>
+                  <th>Рөлі</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in result.table_rows %}
+                <tr class="highlight-row">
+                  <td>{{ row.id }}</td>
+                  <td>{{ row.word }}</td>
+                  <td>{{ row.lemma }}</td>
+                  <td>{{ row.upos }}</td>
+                  <td>{{ row.feats_kaz | safe }}</td>
+                  <td>{{ row.deprel_kaz }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="no-results">Нәтиже жоқ. Басқа сөз енгізіп көріңіз.</p>
+    {% endif %}
+  </div>
+</body>
+</html>
+"""
 
 @app.route('/', methods=['GET'])
 def index():
