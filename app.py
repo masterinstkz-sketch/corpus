@@ -54,7 +54,7 @@ for line in lines:
 if current_doc:
     documents.append(current_doc)
 
-print(f"Загружено документов: {len(documents)}")  # для логов Render
+print(f"Загружено документов: {len(documents)}")
 
 # Метаданные из CSV
 metadata_dict = {}
@@ -140,7 +140,7 @@ HTML_INDEX = """
             {{ result.sentence | safe }}
           </div>
           
-          <h6 class="mb-2">Талдау (табылған сөз(дер) үшін):</h6>
+          <h6 class="mb-2">Талдау (табылған сөз(дер) для):</h6>
           <div class="table-responsive">
             <table class="table table-bordered table-sm mini-table">
               <thead class="table-light">
@@ -197,7 +197,6 @@ def index():
                 sentence_text = ' '.join(sentence_words)
                 sentence_lemmas_lower = [w['lemma'].lower() for w in sent]
 
-                # Проверяем наличие всех слов из запроса
                 all_present = True
                 for qw in query_words:
                     found = False
@@ -210,7 +209,6 @@ def index():
                         break
 
                 if all_present:
-                    # Подсветка
                     highlighted_sent = sentence_text
                     for ww in sent:
                         if ww['lemma'].lower() in query_words:
@@ -221,7 +219,6 @@ def index():
                                 flags=re.IGNORECASE
                             )
 
-                    # Таблица только для найденных слов
                     table_rows = []
                     for token_idx, ww in enumerate(sent, 1):
                         if ww['lemma'].lower() in query_words:
